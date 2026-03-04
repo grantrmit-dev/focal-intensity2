@@ -494,19 +494,24 @@ def norm(v):
     mx = max(v) if max(v) > 0 else 1.0
     return [x/mx for x in v]
 
-# Scale axes to µm
-scale = 1e6
+# Build axes in µm directly from physical extents (focal_core returns λ-normalised axes)
+um = 1e6
+x_axis_um = list(np.linspace(-xe, xe, re) * um)
+y_axis_um = list(np.linspace(-ye, ye, re) * um)
+r_axis_um = list(np.linspace(-xe, xe, re) * um)
+z_axis_um = list(np.linspace(-ze, ze, re) * um)
+
 out = {
     # XY plane maps
     'I':  res_xy['I'],  'Ix': res_xy['Ix'],
     'Iy': res_xy['Iy'], 'Iz': res_xy['Iz'],
-    'x_axis': [v*scale for v in res_xy['x_axis']],
-    'y_axis': [v*scale for v in res_xy['y_axis']],
+    'x_axis': x_axis_um,
+    'y_axis': y_axis_um,
     # RZ plane maps
     'I_rz':  res_rz['I'],  'Ix_rz': res_rz['Ix'],
     'Iy_rz': res_rz['Iy'], 'Iz_rz': res_rz['Iz'],
-    'r_axis': [v*scale for v in res_rz['x_axis']],
-    'z_axis': [v*scale for v in res_rz['y_axis']],
+    'r_axis': r_axis_um,
+    'z_axis': z_axis_um,
     # Cross-sections
     'x_profile': norm(x_profile),
     'y_profile': norm(y_profile),
