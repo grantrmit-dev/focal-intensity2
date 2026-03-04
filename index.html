@@ -403,10 +403,10 @@ function renderPlane(r, plane) {
     renderHeatmap('plotIz', r.Iz, r.x_axis, r.y_axis, 'X (µm)', 'Y (µm)');
   } else {
     label.textContent = 'Intensity Maps — R-Z plane (meridional)';
-    renderHeatmap('plotI',  r.I_rz,  r.r_axis, r.z_axis, 'R (µm)', 'Z (µm)', false);
-    renderHeatmap('plotIx', r.Ix_rz, r.r_axis, r.z_axis, 'R (µm)', 'Z (µm)', false);
-    renderHeatmap('plotIy', r.Iy_rz, r.r_axis, r.z_axis, 'R (µm)', 'Z (µm)', false);
-    renderHeatmap('plotIz', r.Iz_rz, r.r_axis, r.z_axis, 'R (µm)', 'Z (µm)', false);
+    renderHeatmap('plotI',  r.I_rz,  r.r_axis, r.z_axis, 'R (µm)', 'Z (µm)');
+    renderHeatmap('plotIx', r.Ix_rz, r.r_axis, r.z_axis, 'R (µm)', 'Z (µm)');
+    renderHeatmap('plotIy', r.Iy_rz, r.r_axis, r.z_axis, 'R (µm)', 'Z (µm)');
+    renderHeatmap('plotIz', r.Iz_rz, r.r_axis, r.z_axis, 'R (µm)', 'Z (µm)');
   }
 }
 
