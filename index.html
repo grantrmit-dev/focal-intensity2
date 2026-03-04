@@ -49,6 +49,14 @@
     .btn-run:hover:not(:disabled) { background: #2563eb; }
     .btn-run:disabled { background: #1e40af; cursor: not-allowed; opacity: .7; }
 
+    .btn-plane {
+      padding: 7px 0; border-radius: 6px; border: 1px solid #334155;
+      background: #0f172a; color: #94a3b8; font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; transition: all .15s;
+    }
+    .btn-plane:hover { border-color: #3b82f6; color: #e2e8f0; }
+    .btn-plane.active { background: #1d4ed8; border-color: #3b82f6; color: #fff; }
+
     .status-bar {
       font-size: 0.78rem; color: #64748b; text-align: center; min-height: 18px;
     }
@@ -218,6 +226,20 @@
       </div>
     </div>
 
+    <div>
+      <div class="section-title">Display</div>
+      <div style="display:grid;gap:8px;">
+        <div class="field">
+          <label>Focal Plane</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <button class="btn-plane active" id="btnXY" onclick="switchPlane('X-Y')">X-Y</button>
+            <button class="btn-plane" id="btnRZ" onclick="switchPlane('R-Z')">R-Z</button>
+          </div>
+          <span class="hint" id="planeHint">Transverse plane at Z₀</span>
+        </div>
+      </div>
+    </div>
+
     <button class="btn-run" id="btnRun" disabled>Loading Python…</button>
     <div class="status-bar" id="statusBar">Initialising Pyodide…</div>
 
@@ -226,7 +248,7 @@
   <!-- ── Main plots ── -->
   <main class="main">
 
-    <div class="row-label">Intensity Maps — X-Y plane at Z₀</div>
+    <div class="row-label" id="mapRowLabel">Intensity Maps — X-Y plane at Z₀</div>
     <div class="heatmap-grid">
       <div class="plot-box">
         <div class="plot-title">Total Intensity  I</div>
@@ -312,8 +334,13 @@ async function init() {
 init();
 
 // ── Plot helpers ──────────────────────────────────────────────────────────────
-function renderHeatmap(elId, z2d, xArr, yArr, xLabel, yLabel) {
+function renderHeatmap(elId, z2d, xArr, yArr, xLabel, yLabel, squareAxes = true) {
   const colorscale = document.getElementById('colormap').value;
+  const yaxis = {
+    title: { text: yLabel, font: { size: 10, color: '#94a3b8' } },
+    tickfont: { size: 9, color: '#64748b' }, gridcolor: '#334155'
+  };
+  if (squareAxes) { yaxis.scaleanchor = 'x'; yaxis.scaleratio = 1; }
   Plotly.react(elId, [{
     type: 'heatmap', z: z2d, x: xArr, y: yArr,
     colorscale, showscale: true,
@@ -323,9 +350,7 @@ function renderHeatmap(elId, z2d, xArr, yArr, xLabel, yLabel) {
     margin: { l: 46, r: 10, t: 6, b: 40 },
     xaxis: { title: { text: xLabel, font: { size: 10, color: '#94a3b8' } },
              tickfont: { size: 9, color: '#64748b' }, gridcolor: '#334155' },
-    yaxis: { title: { text: yLabel, font: { size: 10, color: '#94a3b8' } },
-             tickfont: { size: 9, color: '#64748b' }, gridcolor: '#334155',
-             scaleanchor: 'x', scaleratio: 1 },
+    yaxis,
     font: { color: '#94a3b8' }
   }, { responsive: true, displayModeBar: false });
 }
@@ -350,6 +375,36 @@ function renderLine(elId, xArr, traces, xLabel) {
     legend: { font: { size: 9, color: '#94a3b8' }, bgcolor: 'transparent' },
     font: { color: '#94a3b8' }
   }, { responsive: true, displayModeBar: false });
+}
+
+// ── Plane state ───────────────────────────────────────────────────────────────
+let currentPlane = 'X-Y';
+let lastResult   = null;
+
+function switchPlane(plane) {
+  currentPlane = plane;
+  document.getElementById('btnXY').classList.toggle('active', plane === 'X-Y');
+  document.getElementById('btnRZ').classList.toggle('active', plane === 'R-Z');
+  document.getElementById('planeHint').textContent =
+    plane === 'X-Y' ? 'Transverse plane at Z₀' : 'Meridional plane through optical axis';
+  if (lastResult) renderPlane(lastResult, plane);
+}
+
+function renderPlane(r, plane) {
+  const label = document.getElementById('mapRowLabel');
+  if (plane === 'X-Y') {
+    label.textContent = 'Intensity Maps — X-Y plane at Z₀';
+    renderHeatmap('plotI',  r.I,  r.x_axis, r.y_axis, 'X (µm)', 'Y (µm)');
+    renderHeatmap('plotIx', r.Ix, r.x_axis, r.y_axis, 'X (µm)', 'Y (µm)');
+    renderHeatmap('plotIy', r.Iy, r.x_axis, r.y_axis, 'X (µm)', 'Y (µm)');
+    renderHeatmap('plotIz', r.Iz, r.x_axis, r.y_axis, 'X (µm)', 'Y (µm)');
+  } else {
+    label.textContent = 'Intensity Maps — R-Z plane (meridional)';
+    renderHeatmap('plotI',  r.I_rz,  r.r_axis, r.z_axis, 'R (µm)', 'Z (µm)', false);
+    renderHeatmap('plotIx', r.Ix_rz, r.r_axis, r.z_axis, 'R (µm)', 'Z (µm)', false);
+    renderHeatmap('plotIy', r.Iy_rz, r.r_axis, r.z_axis, 'R (µm)', 'Z (µm)', false);
+    renderHeatmap('plotIz', r.Iz_rz, r.r_axis, r.z_axis, 'R (µm)', 'Z (µm)', false);
+  }
 }
 
 // ── Run calculation ───────────────────────────────────────────────────────────
@@ -379,7 +434,7 @@ btnRun.addEventListener('click', async () => {
   try {
     pyodide.globals.set('_p', p);
 
-    loaderMsg.textContent = 'Computing X-Y plane + Z profile…';
+    loaderMsg.textContent = 'Computing X-Y plane…';
     const result = await pyodide.runPythonAsync(`
 import json
 
@@ -390,45 +445,49 @@ xe   = p['x_extent'];  ye = p['y_extent'];  ze = p['z_extent']
 re   = int(p['re'])
 pol  = p['polarization']
 
-# ── X-Y plane at z0 (full resolution) ────────────────────────────────────────
+# ── X-Y plane at z0 ──────────────────────────────────────────────────────────
 res_xy = compute_intensity(
     wl=wl, NA=NA, n=n, m=m, e=e, z0=z0,
     x_extent=xe, y_extent=ye, z_extent=ze,
     re=re, polarization=pol, plane='X-Y'
 )
 
-# ── R-Z plane at fixed resolution for Z profile ───────────────────────────────
-RE_Z = 80  # fixed resolution for Z cross-section (fast)
+# ── R-Z plane (full maps + Z profile) ────────────────────────────────────────
 res_rz = compute_intensity(
     wl=wl, NA=NA, n=n, m=m, e=e, z0=0.0,
     x_extent=xe, y_extent=ye, z_extent=ze,
-    re=RE_Z, polarization=pol, plane='R-Z'
+    re=re, polarization=pol, plane='R-Z'
 )
 
-# ── Extract 1-D cross-sections from total intensity I ─────────────────────────
-mid_xy = re   // 2
-mid_rz = RE_Z // 2
+# ── 1-D cross-sections ────────────────────────────────────────────────────────
+mid_xy = re // 2
+mid_rz = re // 2
 
-I_xy   = res_xy['I']   # list of lists [row][col], row=Y col=X
-I_rz   = res_rz['I']   # list of lists [row][col], row=Z col=R
+I_xy = res_xy['I']
+I_rz = res_rz['I']
 
-x_profile = I_xy[mid_xy]                    # along X at y=0
-y_profile = [row[mid_xy] for row in I_xy]   # along Y at x=0
-z_profile = [row[mid_rz] for row in I_rz]   # along Z at r=0
+x_profile = I_xy[mid_xy]
+y_profile = [row[mid_xy] for row in I_xy]
+z_profile = [row[mid_rz] for row in I_rz]
 
-# Normalise each profile independently to peak=1
 def norm(v):
     mx = max(v) if max(v) > 0 else 1.0
     return [x/mx for x in v]
 
+# Scale axes to µm
+scale = 1e6
 out = {
-    'I':  res_xy['I'],
-    'Ix': res_xy['Ix'],
-    'Iy': res_xy['Iy'],
-    'Iz': res_xy['Iz'],
-    'x_axis': res_xy['x_axis'],
-    'y_axis': res_xy['y_axis'],
-    'z_axis': res_rz['y_axis'],
+    # XY plane maps
+    'I':  res_xy['I'],  'Ix': res_xy['Ix'],
+    'Iy': res_xy['Iy'], 'Iz': res_xy['Iz'],
+    'x_axis': [v*scale for v in res_xy['x_axis']],
+    'y_axis': [v*scale for v in res_xy['y_axis']],
+    # RZ plane maps
+    'I_rz':  res_rz['I'],  'Ix_rz': res_rz['Ix'],
+    'Iy_rz': res_rz['Iy'], 'Iz_rz': res_rz['Iz'],
+    'r_axis': [v*scale for v in res_rz['x_axis']],
+    'z_axis': [v*scale for v in res_rz['y_axis']],
+    # Cross-sections
     'x_profile': norm(x_profile),
     'y_profile': norm(y_profile),
     'z_profile': norm(z_profile),
@@ -437,18 +496,15 @@ out = {
 json.dumps(out)
 `);
 
-    const r = JSON.parse(result);
+    lastResult = JSON.parse(result);
 
-    // Heatmaps
-    renderHeatmap('plotI',  r.I,  r.x_axis, r.y_axis, 'X (λ)', 'Y (λ)');
-    renderHeatmap('plotIx', r.Ix, r.x_axis, r.y_axis, 'X (λ)', 'Y (λ)');
-    renderHeatmap('plotIy', r.Iy, r.x_axis, r.y_axis, 'X (λ)', 'Y (λ)');
-    renderHeatmap('plotIz', r.Iz, r.x_axis, r.y_axis, 'X (λ)', 'Y (λ)');
+    // Render heatmaps for currently selected plane
+    renderPlane(lastResult, currentPlane);
 
-    // Cross-section line plots
-    renderLine('plotXsec', r.x_axis, [{ y: r.x_profile, name: 'I(x)' }], 'X (λ)');
-    renderLine('plotYsec', r.y_axis, [{ y: r.y_profile, name: 'I(y)' }], 'Y (λ)');
-    renderLine('plotZsec', r.z_axis, [{ y: r.z_profile, name: 'I(z)' }], 'Z (λ)');
+    // Cross-section line plots (always shown, independent of plane)
+    renderLine('plotXsec', lastResult.x_axis, [{ y: lastResult.x_profile, name: 'I(x)' }], 'X (µm)');
+    renderLine('plotYsec', lastResult.y_axis, [{ y: lastResult.y_profile, name: 'I(y)' }], 'Y (µm)');
+    renderLine('plotZsec', lastResult.z_axis, [{ y: lastResult.z_profile, name: 'I(z)' }], 'Z (µm)');
 
     loader.classList.add('hidden');
     setStatus('Done.', 'ok');
