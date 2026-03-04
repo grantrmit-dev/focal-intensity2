@@ -271,15 +271,15 @@
     <div class="row-label">Cross-sectional Intensity Profiles</div>
     <div class="xsec-grid">
       <div class="plot-box">
-        <div class="plot-title">I along X  (at y=0, z=Z₀)</div>
+        <div class="plot-title" id="titleXsec">I along X  (at y=0, z=Z₀)</div>
         <div class="plot-el" id="plotXsec"></div>
       </div>
       <div class="plot-box">
-        <div class="plot-title">I along Y  (at x=0, z=Z₀)</div>
+        <div class="plot-title" id="titleYsec">I along Y  (at x=0, z=Z₀)</div>
         <div class="plot-el" id="plotYsec"></div>
       </div>
       <div class="plot-box">
-        <div class="plot-title">I along Z  (at x=0, y=0)</div>
+        <div class="plot-title" id="titleZsec">I along Z  (at x=0, y=0)</div>
         <div class="plot-el" id="plotZsec"></div>
       </div>
     </div>
@@ -353,6 +353,23 @@ function renderHeatmap(elId, z2d, xArr, yArr, xLabel, yLabel, squareAxes = true)
     yaxis,
     font: { color: '#94a3b8' }
   }, { responsive: true, displayModeBar: false });
+}
+
+// ── FWHM ──────────────────────────────────────────────────────────────────────
+function computeFWHM(xArr, yArr) {
+  const half = 0.5;
+  let left = null, right = null;
+  for (let i = 0; i < yArr.length - 1; i++) {
+    if (left === null && yArr[i] <= half && yArr[i + 1] > half) {
+      const t = (half - yArr[i]) / (yArr[i + 1] - yArr[i]);
+      left = xArr[i] + t * (xArr[i + 1] - xArr[i]);
+    } else if (left !== null && yArr[i] >= half && yArr[i + 1] < half) {
+      const t = (yArr[i] - half) / (yArr[i] - yArr[i + 1]);
+      right = xArr[i] + t * (xArr[i + 1] - xArr[i]);
+      break;
+    }
+  }
+  return (left !== null && right !== null) ? Math.abs(right - left) : null;
 }
 
 function renderLine(elId, xArr, traces, xLabel) {
@@ -508,6 +525,15 @@ json.dumps(out)
     renderLine('plotXsec', lastResult.x_axis, [{ y: lastResult.x_profile, name: 'I(x)' }], 'X (µm)');
     renderLine('plotYsec', lastResult.y_axis, [{ y: lastResult.y_profile, name: 'I(y)' }], 'Y (µm)');
     renderLine('plotZsec', lastResult.z_axis, [{ y: lastResult.z_profile, name: 'I(z)' }], 'Z (µm)');
+
+    // FWHM labels
+    const dx = computeFWHM(lastResult.x_axis, lastResult.x_profile);
+    const dy = computeFWHM(lastResult.y_axis, lastResult.y_profile);
+    const dz = computeFWHM(lastResult.z_axis, lastResult.z_profile);
+    const fmt = v => v != null ? v.toFixed(3) + ' µm' : 'N/A';
+    document.getElementById('titleXsec').textContent = `I along X — dx = ${fmt(dx)}`;
+    document.getElementById('titleYsec').textContent = `I along Y — dy = ${fmt(dy)}`;
+    document.getElementById('titleZsec').textContent = `I along Z — dz = ${fmt(dz)}`;
 
     loader.classList.add('hidden');
     setStatus('Done.', 'ok');
