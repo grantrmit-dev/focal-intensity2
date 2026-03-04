@@ -232,8 +232,8 @@
         <div class="field">
           <label>Focal Plane</label>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-            <button class="btn-plane active" id="btnXY" onclick="switchPlane('X-Y')">X-Y</button>
-            <button class="btn-plane" id="btnRZ" onclick="switchPlane('R-Z')">R-Z</button>
+            <button class="btn-plane active" id="btnXY">X-Y</button>
+            <button class="btn-plane" id="btnRZ">R-Z</button>
           </div>
           <span class="hint" id="planeHint">Transverse plane at Z₀</span>
         </div>
@@ -380,6 +380,9 @@ function renderLine(elId, xArr, traces, xLabel) {
 // ── Plane state ───────────────────────────────────────────────────────────────
 let currentPlane = 'X-Y';
 let lastResult   = null;
+
+document.getElementById('btnXY').addEventListener('click', () => switchPlane('X-Y'));
+document.getElementById('btnRZ').addEventListener('click', () => switchPlane('R-Z'));
 
 function switchPlane(plane) {
   currentPlane = plane;
